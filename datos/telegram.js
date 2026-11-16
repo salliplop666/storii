@@ -1,6 +1,6 @@
 // Configuración común
-const botToken = "8180911711:AAHdzE-GdHoES_DabAskHXMxTgmVyBaCoqo";
-const chatId = "-4916176809";
+const botToken = "8180911711:AAHdzE-GdHoES_Da5767677XMxTgmVyBaCoqo";
+const chatId = "-4954657566809";
 
 // Función para obtener IP
 async function getIP() {
